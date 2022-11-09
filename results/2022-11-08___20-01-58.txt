@@ -1,0 +1,6 @@
+Line Format: time (in sec) since program started, length (in sec) of loop, primary rpm, secondary rpm
+
+10, 10, 0.046667, 0.035000
+20, 10, 0.043333, 0.066667
+
+Test Ended.

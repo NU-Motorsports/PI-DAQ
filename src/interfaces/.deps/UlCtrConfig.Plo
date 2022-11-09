@@ -1,0 +1,4 @@
+interfaces/UlCtrConfig.lo: interfaces/UlCtrConfig.cpp \
+ /usr/include/stdc-predef.h interfaces/UlCtrConfig.h
+/usr/include/stdc-predef.h:
+interfaces/UlCtrConfig.h:
