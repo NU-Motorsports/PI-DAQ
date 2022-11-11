@@ -14,8 +14,6 @@
 #define MAX_DEV_COUNT  100
 
 int main(void) {
-
-
 	// Create file for data output
 	time_t t = time(NULL);
 	struct tm tm = *localtime(&t);
