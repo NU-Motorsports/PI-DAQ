@@ -24,7 +24,7 @@ int main(void) {
 
 	FILE *f = fopen(filename, "w"); // create a file for output // write only
 
-	fprintf(f, "Line Format: time (in sec) since program started, length (in sec) of loop, primary rpm, secondary rpm\n\n");
+	fprintf(f, "Line Format: time (in sec) since program started, primary rpm, secondary rpm\n\n");
 
 	// Counter Channels
 	int pCounter = 0; // Primary
@@ -35,9 +35,19 @@ int main(void) {
 	unsigned long long sData = 0;
 
 	// Timing for Counters
-	struct timespec start_ts, current_ts; // IN NANOSECONDS
-	u_int64_t previousTime = 0;
-	int timePerLoop = 100; // 100 milliseconds
+	struct timespec s, c; // IN NANOSECONDS
+	// *.tv_sec (time_t)
+	// *.tv_nsec (long)
+	
+	long int sInMilli, cInMilli, prevTime;
+	
+	int milliPerLoop = 3000; // milliseconds
+
+	float perMinute;
+	
+	long int timestampInMilli;
+	long int ts_sec;
+	long int ts_milli;
 
 	//float ratio = 0;
 	float pRPM = 0;
@@ -67,14 +77,12 @@ int main(void) {
 		goto end;
 	}
 
-	// Clear console / output screen
-	//system("clear");
-
 	// OFF TO THE RACES!	
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start_ts);
-	
-	while(err == ERR_NO_ERROR && !enter_press()) {
-		
+	clock_gettime(CLOCK_MONOTONIC_RAW, &s);	
+	sInMilli = (s.tv_sec * 1000) + (s.tv_nsec / 1000000);
+	prevTime = sInMilli;
+
+	while(err == ERR_NO_ERROR && !enter_press()) {		
 
 		// Abracadabra! Counters do count thing.
 		err = ulCIn(daqDeviceHandle, pCounter, &pData);
@@ -84,13 +92,9 @@ int main(void) {
 		//system("clear");
 		//resetCursor();
 
-		clock_gettime(CLOCK_MONOTONIC_RAW, &current_ts);
-		
-		u_int64_t currentMilliseconds = ((current_ts.tv_sec - start_ts.tv_sec) * 1000000 + (current_ts.tv_nsec - start_ts.tv_nsec) / 1000) / 1000;
+		clock_gettime(CLOCK_MONOTONIC_RAW, &c);
+		cInMilli = (c.tv_sec * 1000) + (c.tv_nsec / 1000000);
 
-		// MICROSECONDS	
-		// u_int64_t microseconds = (current_ts.tv_sec - start_ts.tv_sec) * 1000000 + (current_ts.tv_nsec - start_ts.tv_nsec) / 1000;
-		
 		//fprintf(stdout, "%"PRIu64"\n", currentMilliseconds);
 		//fprintf(stdout, "Primary Counter %d: %lld\n", pCounter, pData);
 		//fprintf(stdout, "Secondary Counter %d: %lld\n", sCounter, sData);
@@ -101,37 +105,34 @@ int main(void) {
 		//fprintf(stdout, "Primary RPM: %f\n", pRPM);
 		//fprintf(stdout, "Secondary RPM: %f\n", sRPM);
 
-		if(currentMilliseconds >= previousTime + timePerLoop){
+		if(cInMilli >= prevTime + milliPerLoop){
+
+			perMinute = ((float) 60) / ((float) (cInMilli - prevTime));
 			
-			pRPM = ((float) pData / ((currentMilliseconds - previousTime) * 1000));
+			pRPM = ((float) pData) / perMinute;
 
-			sRPM = ((float) sData / ((currentMilliseconds - previousTime) * 1000));
-
-			long timestamp_seconds = current_ts.tv_sec - start_ts.tv_sec;
-
-			long timestamp_msecs = (current_ts.tv_nsec / 1000000) - (start_ts.tv_nsec / 1000000);
-
-			if (timestamp_msecs < 0) {
-				timestamp_seconds = timestamp_seconds - (long)1;
-				timestamp_msecs = 1000 + timestamp_msecs;
-			}
-				//(current_ts.tv_sec - start_ts.tv_sec) * 1000000 + current_ts.tv_nsec - start_ts.tv_nsec;
-
-			fprintf(f, "%ld.%ld    %"PRIu64"    %f    %f\n", timestamp_seconds, timestamp_msecs, currentMilliseconds - previousTime, pRPM, sRPM);
+			sRPM = ((float) sData) / perMinute;
 			
-				
-			//fprintf(f, "%"PRIu64"    %f    %f\n", currentMilliseconds - previousTime, pRPM, sRPM);
+			timestampInMilli = cInMilli - sInMilli;
+
+			ts_sec = timestampInMilli / 1000;
+
+			ts_milli = timestampInMilli % 1000;
+
+			// Prints data kindly for Ella's human eyes
+			//fprintf(f, "%5ld.%02lu    %20.2f    %20.2f\n", ts_sec, ts_milli, pRPM, sRPM);
 			
-			//fprintf(f, "%jd.%.9ld   %"PRIu64"    %f    %f\n", (intmax_t)(current_ts.tv_sec - start_ts.tv_sec), current_ts.tv_nsec - start_ts.tv_nsec, currentMilliseconds - previousTime, pRPM, sRPM);
-			
-			previousTime = currentMilliseconds;
+			// Print data kindly for computer taking in data
+			fprintf(f, "%ld.%ld, %.2f, %.2f\n", ts_sec, ts_milli, pRPM, sRPM);
+							
+
+			prevTime = cInMilli;
 
 			// Reset counters / channels
 			ulCClear(daqDeviceHandle, pCounter);
 			ulCClear(daqDeviceHandle, sCounter);
 		}
 		
-		//usleep(100000);
 	}
 
 	// disconnect from the DAQ device
@@ -149,8 +150,6 @@ end:
 		printf("Error Code: %d \n", err);
 		printf("Error Message: %s \n", errMsg);
 	}
-
-	// fprintf(f, "\nTest Ended.\n");
 
 	return 0;
 }
